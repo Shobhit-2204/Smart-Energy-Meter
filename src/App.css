@@ -1,0 +1,7 @@
+/* App specific styles */
+
+@media (max-width: 768px) {
+  .md\:ml-64 {
+    margin-left: 0;
+  }
+}
