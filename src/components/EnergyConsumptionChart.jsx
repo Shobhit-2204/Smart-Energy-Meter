@@ -137,7 +137,7 @@ export default function EnergyConsumptionChart({ selectedMonth }) {
             stroke="#9ca3af"
             style={{ fontSize: '12px' }}
             tick={{ fill: '#9ca3af', fontSize: 12 }}
-            label={{ value: 'Cumulative Energy (kWh)', angle: -90, position: 'insideLeft', offset: 10 }}
+            label={{ value: 'Cumulative Energy (kWh)', angle: -90, position: 'center', offset: 40 }}
           />
           <Tooltip 
             contentStyle={{ 
