@@ -54,9 +54,9 @@
    Create a `.env` file in the `smartmeterdashboard` directory with the following content:
 
    ```dotenv
-   VITE_SUPABASE_URL=https://wgdqgtauujhekzeqgdhq.supabase.co
-   VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY=sb_publishable_rwT50W4ARFEAQYNX3Avhyw_AarzVZQG
-   VITE_GEMINI_API_KEY=AIzaSyBFOqH5fh-64bFbq7fW7r-7W_X4OFw82Kw
+   VITE_SUPABASE_URL=Supabase project URL
+   VITE_SUPABASE_PUBLISHABLE_DEFAULT_KEY=Supabase public API key
+   VITE_GEMINI_API_KEY=Gemini API key for AI insights
    ```
 
 4. **Start the development server:**
