@@ -79,7 +79,7 @@ export default function DashboardStats() {
               <div className="icon-indian-rupee text-2xl text-green-400"></div>
             </div>
           </div>
-          <p className="text-xs text-[var(--text-secondary)]">Estimated for {new Date().toLocaleString('default', { month: 'long' })}</p>
+          <p className="text-xs text-[var(--text-secondary)]">For {new Date().toLocaleString('default', { month: 'long' })}</p>
         </div>
       </div>
     );
