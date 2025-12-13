@@ -39,40 +39,26 @@ export default function Analytics() {
         const isCurrentMonth = selectedMonth.getFullYear() === now.getFullYear() && 
                               selectedMonth.getMonth() === now.getMonth();
 
-        // Start of selected month in ISO format
-        const startOfMonth = new Date(
-          selectedMonth.getFullYear(), 
-          selectedMonth.getMonth(), 
-          1
-        ).toISOString();
-        
-        // End of selected month for query
-        const endOfMonth = new Date(
-          selectedMonth.getFullYear(), 
-          selectedMonth.getMonth() + 1, 
-          0
-        ).toISOString();
+        // Format: "2025-10" for the RPC function
+        const targetMonthStr = `${selectedMonth.getFullYear()}-${String(selectedMonth.getMonth() + 1).padStart(2, '0')}`;
 
-        // Fetch Energy Logs for selected month
-        const { data: logs, error: dbError } = await supabase
-          .from('energy_logs')
-          .select('device_id, energy_kwh')
-          .gte('recorded_at', startOfMonth)
-          .lte('recorded_at', endOfMonth);
+        // Fetch aggregated data using same RPC function as chart and dashboard
+        const { data: statsData, error: dbError } = await supabase
+          .rpc('get_monthly_stats', { target_month: targetMonthStr });
 
         if (dbError) throw dbError;
 
-        // Aggregate Usage Data
+        // Aggregate Usage Data by Device
         let totalKwh = 0;
         const deviceUsage = {};
 
-        logs.forEach(log => {
-          const kwh = Number(log.energy_kwh) || 0;
+        statsData.forEach(row => {
+          const kwh = Number(row.total_kwh) || 0;
           totalKwh += kwh;
-          if (!deviceUsage[log.device_id]) {
-            deviceUsage[log.device_id] = 0;
+          if (!deviceUsage[row.device_id]) {
+            deviceUsage[row.device_id] = 0;
           }
-          deviceUsage[log.device_id] += kwh;
+          deviceUsage[row.device_id] += kwh;
         });
 
         // Map device IDs to names for better readability

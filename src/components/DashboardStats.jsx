@@ -1,4 +1,6 @@
-import { useEnergyLogs } from '../utils/supabaseHooks';
+import { useEffect, useState } from 'react';
+import { supabase } from '../utils/supabaseClient';
+import { useDevices } from '../utils/supabaseHooks';
 
 // Calculate tiered pricing
 const calculateTieredPrice = (units) => {
@@ -42,10 +44,40 @@ const calculateTieredPrice = (units) => {
 };
 
 export default function DashboardStats() {
+  const { devices } = useDevices();
+  const [totalPower, setTotalPower] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchTotalEnergy = async () => {
+      setLoading(true);
+      try {
+        const now = new Date();
+        const targetMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+        // Use the same RPC function as the chart
+        const { data, error } = await supabase
+          .rpc('get_monthly_stats', { target_month: targetMonthStr });
+
+        if (error) throw error;
+
+        // Sum all energy values across all devices and days
+        const total = data.reduce((sum, row) => sum + (row.total_kwh || 0), 0);
+        setTotalPower(Math.round(total * 100) / 100);
+      } catch (err) {
+        console.error('Error fetching total energy:', err);
+        setTotalPower(0);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (devices.length > 0) {
+      fetchTotalEnergy();
+    }
+  }, [devices]);
+
   try {
-    const { getTotalMonthlyEnergy, loading } = useEnergyLogs();
-    
-    const totalPower = Math.round(getTotalMonthlyEnergy() * 100) / 100;
     const totalBill = Math.round(calculateTieredPrice(totalPower) * 100) / 100;
 
     return (
@@ -79,7 +111,7 @@ export default function DashboardStats() {
               <div className="icon-indian-rupee text-2xl text-green-400"></div>
             </div>
           </div>
-          <p className="text-xs text-[var(--text-secondary)]">Estimated for {new Date().toLocaleString('default', { month: 'long' })}</p>
+          <p className="text-xs text-[var(--text-secondary)]">For {new Date().toLocaleString('default', { month: 'long' })}</p>
         </div>
       </div>
     );
