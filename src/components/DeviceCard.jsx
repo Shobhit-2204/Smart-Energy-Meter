@@ -24,7 +24,7 @@ const getDeviceIcon = (deviceId) => {
 export default function DeviceCard() {
   try {
     const { devices, loading: devicesLoading, updateRelayState } = useDevices();
-    const { liveData } = useLiveMonitor();
+    const { liveData } = useLiveMonitor(devices);
 
     const handleToggleDevice = async (deviceId, currentState) => {
       await updateRelayState(deviceId, !currentState);

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from './supabaseClient';
+import { correctCurrent, correctPower, isSimulatedDevice } from './sensorCorrection';
 
 export const useDevices = () => {
   const [devices, setDevices] = useState([]);
@@ -73,36 +74,10 @@ export const useDevices = () => {
   return { devices, loading, error, updateRelayState, refetch: fetchDevices };
 };
 
-export const useLiveMonitor = () => {
+export const useLiveMonitor = (devices = []) => {
   const [liveData, setLiveData] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    fetchLiveMonitor();
-    
-    // Subscribe to realtime updates
-    const subscription = supabase
-      .channel('public:live_monitor')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'live_monitor' },
-        (payload) => {
-          console.log('Live monitor update:', payload);
-          if (payload.new) {
-            setLiveData((prev) => ({
-              ...prev,
-              [payload.new.device_id]: payload.new,
-            }));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
 
   const fetchLiveMonitor = async () => {
     try {
@@ -115,7 +90,13 @@ export const useLiveMonitor = () => {
       
       const dataMap = {};
       (data || []).forEach((item) => {
-        dataMap[item.device_id] = item;
+        const deviceName = devices.find(d => d.id === item.device_id)?.name ?? '';
+        const sim = isSimulatedDevice(deviceName);
+        dataMap[item.device_id] = {
+          ...item,
+          current: correctCurrent(item.current, sim),
+          power: correctPower(item.current, item.voltage, sim),
+        };
       });
       setLiveData(dataMap);
       setError(null);
@@ -126,6 +107,41 @@ export const useLiveMonitor = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchLiveMonitor();
+  }, [devices]);
+
+  useEffect(() => {
+    // Subscribe to realtime updates
+    const subscription = supabase
+      .channel('public:live_monitor')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'live_monitor' },
+        (payload) => {
+          console.log('Live monitor update:', payload);
+          if (payload.new) {
+            const deviceName = devices.find(d => d.id === payload.new.device_id)?.name ?? '';
+            const sim = isSimulatedDevice(deviceName);
+            const correctedRow = {
+              ...payload.new,
+              current: correctCurrent(payload.new.current, sim),
+              power: correctPower(payload.new.current, payload.new.voltage, sim),
+            };
+            setLiveData((prev) => ({
+              ...prev,
+              [payload.new.device_id]: correctedRow,
+            }));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [devices]);
 
   return { liveData, loading, error, refetch: fetchLiveMonitor };
 };
