@@ -14,5 +14,6 @@ export function correctPower(rawAmps, voltage = 230, isSimulated = false) {
 }
 
 export function isSimulatedDevice(deviceName = '') {
-  return deviceName.toLowerCase() === 'ac';
+  const normalized = String(deviceName ?? '').trim().toLowerCase();
+  return normalized === 'ac' || normalized === 'air conditioner' || normalized === 'air-conditioner';
 }
