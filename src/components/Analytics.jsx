@@ -92,8 +92,7 @@ TASK:
 
 OUTPUT FORMAT:
 Return ONLY valid JSON. Do not include markdown formatting like \`\`\`json.
-{git remote add origin https://github.com/Shobhit-2204/Smart-Energy-Meter.git
-git push -u origin main  
+{  
   "projected_kwh": 123.45,
   "estimated_bill": 456.78,
   "tips": [
