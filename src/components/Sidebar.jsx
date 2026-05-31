@@ -8,6 +8,7 @@ export default function Sidebar({ currentPage, setCurrentPage }) {
       { id: 'dashboard', icon: 'layout-dashboard', label: 'Dashboard' },
       { id: 'analytics', icon: 'chart-bar', label: 'Analytics' },
       { id: 'devices', icon: 'cpu', label: 'Devices' },
+      { id: 'budget', icon: 'wallet', label: 'Budget Settings' },
       { id: 'about', icon: 'info', label: 'About' }
     ];
 

@@ -229,3 +229,102 @@ export const useEnergyLogs = (deviceId = null) => {
     refetch: fetchEnergyLogs 
   };
 };
+
+export const useBudget = () => {
+  const [budget, setBudgetState] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Get user email or use a default identifier (since we don't have user auth)
+  const getUserIdentifier = () => {
+    return localStorage.getItem('userEmail') || 'default_user';
+  };
+
+  useEffect(() => {
+    fetchBudget();
+    
+    // Subscribe to realtime updates
+    const subscription = supabase
+      .channel('public:user_budgets')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_budgets' },
+        (payload) => {
+          console.log('Budget update:', payload);
+          fetchBudget();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const fetchBudget = async () => {
+    try {
+      setLoading(true);
+      const userIdentifier = getUserIdentifier();
+      const { data, error } = await supabase
+        .from('user_budgets')
+        .select('*')
+        .eq('user_email', userIdentifier)
+        .single();
+      
+      if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows found
+      setBudgetState(data || null);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching budget:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const setBudget = async (monthlyLimit) => {
+    try {
+      const userIdentifier = getUserIdentifier();
+      
+      if (budget) {
+        // Update existing budget
+        const { error } = await supabase
+          .from('user_budgets')
+          .update({ 
+            monthly_budget_limit: monthlyLimit,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_email', userIdentifier);
+        
+        if (error) throw error;
+      } else {
+        // Insert new budget
+        const { error } = await supabase
+          .from('user_budgets')
+          .insert({
+            user_email: userIdentifier,
+            monthly_budget_limit: monthlyLimit,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          });
+        
+        if (error) throw error;
+      }
+      
+      await fetchBudget();
+      return true;
+    } catch (err) {
+      console.error('Error setting budget:', err);
+      setError(err.message);
+      return false;
+    }
+  };
+
+  return { 
+    budget, 
+    loading, 
+    error, 
+    setBudget,
+    refetch: fetchBudget 
+  };
+};

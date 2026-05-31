@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useDevices } from '../utils/supabaseHooks';
+import { useDevices, useBudget } from '../utils/supabaseHooks';
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { supabase } from '../utils/supabaseClient';
 import EnergyConsumptionChart from './EnergyConsumptionChart';
+import BudgetBar from './BudgetBar';
 
 // --- CONFIGURATION ---
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
@@ -25,6 +26,7 @@ export default function Analytics() {
     const [error, setError] = useState(null);
     
     const { devices } = useDevices();
+    const { budget } = useBudget();
 
     const handleMonthChange = (offset) => {
       setSelectedMonth(new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() - offset, 1));
@@ -73,14 +75,26 @@ export default function Analytics() {
         const daysInMonth = new Date(selectedMonth.getFullYear(), selectedMonth.getMonth() + 1, 0).getDate();
         const currentDay = now.getDate();
 
+        // Build budget context for AI
+        let budgetContext = '';
+        if (budget && budget.monthly_budget_limit) {
+          const budgetLimit = budget.monthly_budget_limit;
+          budgetContext = `
+- User's Monthly Budget Limit: ₹${budgetLimit.toFixed(2)}`;
+        } else {
+          budgetContext = `
+- User's Monthly Budget Limit: Not set (no budget constraint)`;
+        }
+
         const prompt = `
-Act as an expert Home Energy Auditor.
+Act as an expert Home Energy Auditor with Budget Optimization Focus.
 
 CONTEXT DATA:
 - Analysis Month: ${selectedMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
 ${isCurrentMonth ? `- Current Date: Day ${currentDay} of ${daysInMonth}` : `- Analysis Period: Full month (${daysInMonth} days)`}
-- Total Usage: ${totalKwh.toFixed(2)} kWh
+- Total Usage (to date): ${totalKwh.toFixed(2)} kWh
 - Device Breakdown (Device: kWh): ${JSON.stringify(deviceBreakdown)}
+${budgetContext}
 
 PRICING STRUCTURE (Tiered):
 ${PRICING_TIERS_DESC}
@@ -88,18 +102,32 @@ ${PRICING_TIERS_DESC}
 TASK:
 1. **Project** the total kWh for the end of the month based on current usage. ${isCurrentMonth ? `Use daily average from ${currentDay} days.` : 'Analyze the total consumption for this complete month.'}
 2. **Calculate** the estimated bill using the PRICING STRUCTURE provided above. Apply the tiers correctly to the projected total. Show the calculation logic.
-3. **Analyze** the device breakdown and provide 3 specific, actionable tips to reduce costs (focus on the highest consumers) considering weather condition according to ${selectedMonth} in Delhi, India Location.
+3. **Analyze the Budget Status** (if user has a budget set):
+   - Compare projected bill with budget limit
+   - Identify if user will stay within budget or exceed it
+   - Calculate excess amount if any
+4. **Provide Recommendations**:
+   - Give 3 specific, actionable tips to reduce costs (focus on the highest consumers)
+   - If user will exceed budget: Provide urgent optimization tips to bring spending within limit
+   - Consider weather conditions for ${selectedMonth} in Delhi, India Location
+   - Include concrete actions with estimated savings potential
 
 OUTPUT FORMAT:
 Return ONLY valid JSON. Do not include markdown formatting like \`\`\`json.
-{git remote add origin https://github.com/Shobhit-2204/Smart-Energy-Meter.git
-git push -u origin main  
+{
   "projected_kwh": 123.45,
   "estimated_bill": 456.78,
+  "budget_status": {
+    "has_budget": true/false,
+    "budget_limit": 500.00,
+    "within_budget": true/false,
+    "excess_amount": 0.00,
+    "message": "Concise status message"
+  },
   "tips": [
-    "Tip 1...",
-    "Tip 2...",
-    "Tip 3..."
+    "Tip 1 with estimated savings...",
+    "Tip 2 with estimated savings...",
+    "Tip 3 with estimated savings..."
   ]
 }`;
 
@@ -155,6 +183,22 @@ git push -u origin main
             </div>
           </div>
           <EnergyConsumptionChart selectedMonth={selectedMonth} />
+        </div>
+
+        {/* Budget Analysis Section */}
+        <div className="mb-6">
+          {aiData && aiData.budget_status && (
+            <BudgetBar 
+              actualBill={aiData.estimated_bill}
+              projectedBill={aiData.estimated_bill}
+              projectedKwh={aiData.projected_kwh}
+            />
+          )}
+          {!aiData && (
+            <div className="card">
+              <p className="text-slate-400 text-sm">Generate AI analysis to see your budget comparison</p>
+            </div>
+          )}
         </div>
 
         {/* AI Insights Section */}
@@ -224,6 +268,31 @@ git push -u origin main
                   </div>
                 </div>
               </div>
+
+              {/* Budget Status Alert */}
+              {aiData.budget_status && (
+                <div className={`mb-6 p-4 rounded-lg border-l-4 flex items-start gap-3 ${
+                  aiData.budget_status.within_budget 
+                    ? 'bg-green-500/10 border-l-green-500 text-green-200' 
+                    : 'bg-red-500/10 border-l-red-500 text-red-200'
+                }`}>
+                  <div className={`text-lg mt-0.5 ${aiData.budget_status.within_budget ? 'icon-check-circle' : 'icon-alert-triangle'}`}></div>
+                  <div>
+                    <p className={`font-semibold ${aiData.budget_status.within_budget ? 'text-green-300' : 'text-red-300'}`}>
+                      Budget Status: {aiData.budget_status.message}
+                    </p>
+                    {aiData.budget_status.has_budget && (
+                      <p className="text-xs mt-1 opacity-90">
+                        Budget Limit: ₹{aiData.budget_status.budget_limit.toFixed(2)} | 
+                        Estimated Bill: ₹{aiData.estimated_bill.toFixed(2)} | 
+                        {aiData.budget_status.within_budget 
+                          ? ` Remaining: ₹${(aiData.budget_status.budget_limit - aiData.estimated_bill).toFixed(2)}` 
+                          : ` Excess: ₹${aiData.budget_status.excess_amount.toFixed(2)}`}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Recommendations */}
               <div>

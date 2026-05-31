@@ -4,6 +4,7 @@ import Dashboard from './pages/Dashboard';
 import Analytics from './components/Analytics';
 import DeviceList from './components/DeviceList';
 import About from './components/About';
+import BudgetSettings from './components/BudgetSettings';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
@@ -18,6 +19,8 @@ export default function App() {
         return <Analytics />;
       case 'devices':
         return <DeviceList />;
+      case 'budget':
+        return <BudgetSettings />;
       case 'about':
         return <About />;
       default:
